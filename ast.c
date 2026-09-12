@@ -335,4 +335,3 @@ void param_list__destroy(Param_list *self)
                 free(self);
                 self = next;
         }
-}
