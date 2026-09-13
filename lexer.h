@@ -2,8 +2,6 @@
 #include <stddef.h>
 #include <string.h>
 typedef enum token_type {
-        TOKEN__INTERNAL_USAGE__SYMBOLS_BEGIN
-
 	TOKEN_PLUS,
 	TOKEN_MINUS,
 	TOKEN_EQUAL,
@@ -19,12 +17,13 @@ typedef enum token_type {
 	TOKEN_LE,
 	TOKEN_NEG,
 
-        TOKEN__INTERNAL_USAGE__SYMBOLS_END
-
 	TOKEN_OPENPARENTHESIS,
 	TOKEN_CLOSEDPARENTHESIS,
 	TOKEN_OPENBRACE,
 	TOKEN_CLOSEDBRACE,
+	TOKEN_OPENBRACKET,
+	TOKEN_CLOSEDBRACKET,
+	TOKEN_COMMA,
 	TOKEN_DEFINETAG,
 	TOKEN_NON_PROTECTED_WORD,
 	TOKEN_DIGIT,
@@ -131,6 +130,18 @@ static inline Token get_token(char **src_ptr)
 		}
 		case '}': {
 			self.type = TOKEN_CLOSEDBRACE;
+			src++; goto END;
+		}
+		case '[': {
+			self.type = TOKEN_OPENBRACKET;
+			src++; goto END;
+		}
+		case ']': {
+			self.type = TOKEN_CLOSEDBRACKET;
+			src++; goto END;
+		}
+		case ',': {
+			self.type = TOKEN_COMMA;
 			src++; goto END;
 		}
 		case '<': {
