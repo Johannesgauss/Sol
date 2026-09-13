@@ -19,11 +19,15 @@ Parser parser;
 
 Token scan_token()
 {
-        parser.backup = parser.head;
         Token token; token = get_token(&parser.head.begin);
 
         return token;
 } 
+
+void consume_token()
+{
+        parser.backup = parser.head;
+}
 
 void putback_token()
 {
