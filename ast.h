@@ -97,9 +97,8 @@ typedef enum {
         EXPR_AND,
         EXPR_OR,
         EXPR_ASSIGN,
-        EXPR_SUBSCRIPT,
+        EXPR_COMMA,
         EXPR_CALL,
-        EXPR_ARG,
         EXPR_NAME,
         EXPR_INTEGER_LITERAL,
         EXPR_STRING_LITERAL,
@@ -146,4 +145,36 @@ struct Decl {
         };
         Decl *next;
 };
+
+// Constructors
+Decl *decl__create_value(char *name, Type *type, Expr *value, Decl *next);
+Decl *decl__create_code(char *name, Type *type, Stmt *code, Decl *next);
+
+Stmt *stmt__create_decl(Decl *decl, Stmt *next);
+Stmt *stmt__create_expr(Expr *expr, Stmt *next);
+Stmt *stmt__create_if_else(Expr *expr, Stmt *body, Stmt *else_body, Stmt *next);
+Stmt *stmt__create_for(Expr *init_expr, Expr *expr, Expr *next_expr, Stmt *body, Stmt *next);
+Stmt *stmt__create_while(Expr *expr, Stmt *body, Stmt *next);
+Stmt *stmt__create_print(Expr *expr, Stmt *next);
+Stmt *stmt__create_return(Expr *expr, Stmt *next);
+Stmt *stmt__create_block(Stmt *body, Stmt *next);
+Stmt *stmt__create_break(Stmt *next);
+Stmt *stmt__create_continue(Stmt *next);
+Stmt *stmt__create_goto(const char *label, Stmt *next);
+Stmt *stmt__create_label(const char *label, Stmt *next);
+
+Expr *expr__create(expr_kind kind, Expr *left, Expr *right);
+Expr *expr__create_unary(expr_kind kind, Expr *expr);
+Expr *expr__create_name(const char *name);
+Expr *expr__create_integer_literal(int int_value);
+Expr *expr__create_string_literal(const char *str_literal);
+Expr *expr__create_boolean_literal(int bool_value);
+Expr *expr__create_char_literal(char char_value);
+Expr *expr__create_deref(Expr *expr);
+Expr *expr__create_addr(Expr *expr);
+Expr *expr__create_comma(Expr *left, Expr *right);
+
+Type *type__create(type_kind kind, Type *subtype, Param_list *params);
+Param_list *param_list__create(char *name, Type *type, Param_list *next);
+
 #endif // AST_H

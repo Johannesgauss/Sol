@@ -289,6 +289,11 @@ Expr *expr__create_addr(Expr *expr)
         return expr__create_unary(EXPR_ADDR, expr);
 }
 
+Expr *expr__create_comma(Expr *left, Expr *right)
+{
+        return expr__create(EXPR_COMMA, left, right);
+}
+
 void expr__destroy(Expr *self)
 {
         if (!self) return;
@@ -335,3 +340,4 @@ void param_list__destroy(Param_list *self)
                 free(self);
                 self = next;
         }
+}
