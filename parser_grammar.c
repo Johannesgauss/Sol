@@ -92,15 +92,16 @@ Decl *parser_decl(Token token)
 Decl *parser_function(char *name, type_kind kind)
 {
         Param_list *param_list = parser_param_list();
-        expect_token(TOKEN_CLOSEDPARENTHESIS);
         Type *subtype = type__create(kind, NULL, NULL);
         Type *type = type__create(TYPE_FUNCTION, subtype, param_list);
 
         Token next = peek_token();
         if (next.type == TOKEN_OPENBRACE) {
-                Stmt *code = parser_body(scan_token());
+                consume_token();
+                Stmt *code = parser_body(next);
                 return decl__create_code(name, type, code, NULL);
         } else {
+                putback_token();
                 if (!expect_token(TOKEN_SEMICOLON))
                         perror("Error! Expected ';' after function declaration");
                 return decl__create_code(name, type, NULL, NULL);
@@ -111,14 +112,16 @@ Param_list *parser_param_list()
 {
         Token current_token = peek_token();
         if (current_token.type == TOKEN_CLOSEDPARENTHESIS) {
+                consume_token();
                 return NULL;
         }
+        putback_token();
 
-        Param_list *head_param = malloc(sizeof(*head_param));
-        Param_list *param = head_param;
+        Param_list *param = malloc(sizeof(*param));
+        Param_list *head_param = param;
 
         // ex: int *var[NUM], where * and [NUM] are opt
-        for (int i = 0; i < GOOD_IDEA; i++) {
+        while (current_token.type != TOKEN_CLOSEDPARENTHESIS) {
 
                 Type *type = NULL; Type *subtype = NULL;
                 char *name;
@@ -146,45 +149,59 @@ Param_list *parser_param_list()
                 default:
                         break;
                 }
+
+                if (type_token.type == TOKEN_VOID) {
+                        Token peek = peek_token();
+                        if (peek.type == TOKEN_CLOSEDPARENTHESIS) {
+                                consume_token();
+                                free(head_param);
+                                return NULL;
+                        }
+                        putback_token();
+                }
+
+                current_token = scan_token();
+
+                // I do need more knowledge about semantic analysis before doing that, so I'll just ignore pointer for now
+                /*while (current_token.type == TOKEN_ASTERISK);
+                        param->type = type__create(TYPE_POINTER, NULL, NULL);
+                        param->type = param->type->subtype;
+                        current_token = scan_token();
+                }*/
+
                 param->type = type;
 
-                if (type_token.type == TOKEN_VOID && peek_token().type == TOKEN_CLOSEDPARENTHESIS) {
-                        free(head_param);
-                        return NULL;
-                }
+                param->name = current_token.begin;
+                param->next = NULL;
 
-                Token *pointer_token_set = malloc(GOOD_IDEA*sizeof(*pointer_token_set));
-                pointer_token_set[0] = peek_token(); // ex: * or var
-                if (pointer_token_set.type == TOKEN_ASTERISK) {
-                        subtype = type;
-                        type = type__create(TYPE_POINTER, subtype, NULL); // TYPE_POINTER
-                        param->type = type;
-                        consume_token(); // if *, consume it
-                }
-                Token third_token = scan_token();
-                name = third_token.begin;
-                param->name = name;
-
-                Token fourth_token = peek_token(); // ex: [
+                /*
+                current_token = peek_token();
                 if (fourth_token.type == TOKEN_OPENBRACKET) {
                         consume_token();
-                        Token fourth_one_token = scan_token(); // ex: NUM, ]
-                        if (fourth_one_token.type == TOKEN_DIGIT) {
-                                // yet to be implemented
-                                expect_token(TOKEN_CLOSEDBRACKET);
+                        current_token = peek_token(); // ex: NUM, ]
+                        if (current_token.type == TOKEN_DIGIT) {
+                                // dthain's structs do not support it, so I won't do the same so soon
                         } else {
-                                if (fourth_one_token.type != TOKEN_CLOSEDBRACKET) // not ]
+                                if (current_token.type != TOKEN_CLOSEDBRACKET) // not ]
                                         perror("Error! Expected ']'");
                                 // yet to be implemented
                         }
+
+                        param->type->
                         type = type__create(TYPE_ARRAY, type, NULL);
                         param->type = type;
+                } else {
+                        putback_token();
                 }
 
                 param->next = NULL;
 
-                Token fifth_token = scan_token();
-                if (fifth_token.type != TOKEN_COMMA) {
+                Token fifth_token = peek_token();
+                */
+                current_token = peek_token();
+                if (current_token.type == TOKEN_COMMA) {
+                        consume_token();
+                } else {
                         putback_token();
                         break;
                 }
@@ -192,6 +209,9 @@ Param_list *parser_param_list()
                 param->next = malloc(sizeof(*param->next));
                 param = param->next;
         }
+
+        if (!expect_token(TOKEN_CLOSEDPARENTHESIS))
+                perror("Error! Expected ')' after parameter list");
 
         return head_param;
 }
@@ -248,11 +268,13 @@ Stmt *parser_if_else(Token token)
                 perror("Error with body");
 
         Stmt *else_body = NULL;
-        Token next_token = scan_token();
-        if (next_token.type == TOKEN_ELSE)
+        Token next_token = peek_token();
+        if (next_token.type == TOKEN_ELSE) {
+                consume_token();
                 else_body = parser_body(scan_token());
-        else
+        } else {
                 putback_token();
+        }
 
         return stmt__create_if_else(expr, body, else_body, NULL);
 }
