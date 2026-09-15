@@ -16,6 +16,8 @@ typedef enum token_type {
 	TOKEN_GE,
 	TOKEN_LE,
 	TOKEN_NEG,
+	TOKEN_SLASH,
+	TOKEN_PERCENT,
 
 	TOKEN_OPENPARENTHESIS,
 	TOKEN_CLOSEDPARENTHESIS,
@@ -45,6 +47,7 @@ typedef enum token_type {
 	TOKEN_INT,
 	TOKEN_LONG,
 	TOKEN_TUX,
+	TOKEN_VOID,
 
 	TOKEN_ERROR,
         TOKEN_END
@@ -106,6 +109,18 @@ static inline Token get_token(char **src_ptr)
 		}
 		case ';': {
 			self.type = TOKEN_SEMICOLON;
+			src++; goto END;
+		}
+		case ':': {
+			self.type = TOKEN_COLON;
+			src++; goto END;
+		}
+		case '/': {
+			self.type = TOKEN_SLASH;
+			src++; goto END;
+		}
+		case '%': {
+			self.type = TOKEN_PERCENT;
 			src++; goto END;
 		}
 		case '&': {
@@ -203,6 +218,8 @@ static inline Token get_token(char **src_ptr)
 			self.type = TOKEN_LONG;
 		} else if (len == 3 && !memcmp(self.begin, "tux", len)) {
 			self.type = TOKEN_TUX;
+		} else if (len == 4 && !memcmp(self.begin, "void", len)) {
+			self.type = TOKEN_VOID;
 		} else {
 			self.type = TOKEN_NON_PROTECTED_WORD;
 		}

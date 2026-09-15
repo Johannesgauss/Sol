@@ -19,4 +19,5 @@ void consume_token();
 void putback_token();
 
 bool expect_token(token_type token_type);
+void parser_init(char *source);
 

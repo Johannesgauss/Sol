@@ -1,8 +1,14 @@
 #include "parser_util.h"
+#include <stdlib.h>
+
+struct backup_linked_list {
+        Token value;
+        struct backup_linked_list *previous;
+};
 
 typedef struct parser {
         Token head;
-        Token backup;
+        struct backup_linked_list backup;
 } Parser;
 Parser parser;
 /*
@@ -16,6 +22,16 @@ Parser parser;
 
 
 //typedef struct token { Token token; char *ptr; } Token;
+Token peek_token()
+{
+        struct backup_linked_list *new_backup_ll = malloc(sizeof(*new_backup_ll));
+        new_backup_ll->previous = parser.backup;
+        parser.backup = new_backup_ll;
+
+        parser.backup.value = parser.head;
+        parser.backup = *parser.backup.next;
+        return get_token(&parser.head.begin);
+}
 
 Token scan_token()
 {
@@ -26,7 +42,12 @@ Token scan_token()
 
 void consume_token()
 {
-        parser.backup = parser.head;
+        backup_linked_list *tail;
+        while (parser.backup.next) {
+                tail = parser.backup.next;
+        }
+
+        
 }
 
 void putback_token()

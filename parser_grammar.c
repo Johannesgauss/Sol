@@ -6,6 +6,8 @@
 
 Expr *parser_expr();
 Decl *parser_decl(Token token);
+Decl *parser_function(char *name, type_kind kind);
+Param_list *parser_param_list();
 Stmt *parser_if_else(Token token);
 Stmt *parser_for(Token token);
 Stmt *parser_while(Token token);
@@ -53,6 +55,7 @@ Decl *parser_decl(Token token)
                 kind = TYPE_TUX;
                 break;
         case TOKEN_VOID:
+                kind = TYPE_VOID;
                 is_void = true;
                 break;
         default:
@@ -60,7 +63,7 @@ Decl *parser_decl(Token token)
                 return NULL;
         }
 
-        Type *type; Type *subtype = NULL; Param_list *param_list = NULL;
+        Type *type = NULL; Type *subtype = NULL; Param_list *param_list = NULL;
 
         Token name_token = scan_token();
         if (name_token.type != TOKEN_NON_PROTECTED_WORD)
@@ -68,18 +71,17 @@ Decl *parser_decl(Token token)
 
         char *name = name_token.begin;
 
-        if (!expect_token(TOKEN_EQUAL) || is_void) {
-                if (!expect_token(TOKEN_OPENPARENTHESIS))
-                        perror("Error! Expected '=' or '(' in declaration");
-                else {
-                        subtype = type__create(TYPE_FUNCTION);
-                        param_list = parser_param_list();
-                }
-        }
+        if (expect_token(TOKEN_OPENPARENTHESIS))
+                return parser_function(name, kind);
 
-        Type *type = type__create(kind, subtype, param_list);
+        if (is_void)
+                perror("Error! Variable cannot be of type void");
 
-        Expr *value = parser_expr();
+        type = type__create(kind, subtype, param_list);
+
+        Expr *value = NULL;
+        if (expect_token(TOKEN_EQUAL))
+                value = parser_expr();
 
         if (!expect_token(TOKEN_SEMICOLON))
                 perror("Error! Expected ';' at end of declaration");
@@ -87,51 +89,111 @@ Decl *parser_decl(Token token)
         return decl__create_value(name, type, value, NULL);
 }
 
+Decl *parser_function(char *name, type_kind kind)
+{
+        Param_list *param_list = parser_param_list();
+        expect_token(TOKEN_CLOSEDPARENTHESIS);
+        Type *subtype = type__create(kind, NULL, NULL);
+        Type *type = type__create(TYPE_FUNCTION, subtype, param_list);
+
+        Token next = peek_token();
+        if (next.type == TOKEN_OPENBRACE) {
+                Stmt *code = parser_body(scan_token());
+                return decl__create_code(name, type, code, NULL);
+        } else {
+                if (!expect_token(TOKEN_SEMICOLON))
+                        perror("Error! Expected ';' after function declaration");
+                return decl__create_code(name, type, NULL, NULL);
+        }
+}
+
 Param_list *parser_param_list()
 {
-        Param_list *param_array = malloc(GOOD_IDEA*sizeof(*param_array)); 
+        Token current_token = peek_token();
+        if (current_token.type == TOKEN_CLOSEDPARENTHESIS) {
+                return NULL;
+        }
 
-        Token *current_token = peek_token();
+        Param_list *head_param = malloc(sizeof(*head_param));
+        Param_list *param = head_param;
 
         // ex: int *var[NUM], where * and [NUM] are opt
-        for (int i = 0; i < GOOD_IDEA && current_token.type != TOKEN_CLOSEDPARENTHESIS; i++) {
+        for (int i = 0; i < GOOD_IDEA; i++) {
 
-                Type *type; Type *subtype = NULL;
+                Type *type = NULL; Type *subtype = NULL;
                 char *name;
 
-                first_token = scan_token(); // ex: int
-                switch (first_token.type) {
+                Token type_token = scan_token(); // ex: int
+                switch (type_token.type) {
                 case TOKEN_INT:
-                        param_array[i].type = TYPE_INTEGER;
+                        type = type__create(TYPE_INTEGER, NULL, NULL);
+                        break;
+                case TOKEN_CHAR:
+                        type = type__create(TYPE_CHARACTER, NULL, NULL);
+                        break;
+                case TOKEN_TINY:
+                        type = type__create(TYPE_TINY, NULL, NULL);
+                        break;
+                case TOKEN_LONG:
+                        type = type__create(TYPE_LONG, NULL, NULL);
+                        break;
+                case TOKEN_TUX:
+                        type = type__create(TYPE_TUX, NULL, NULL);
+                        break;
+                case TOKEN_VOID:
+                        type = type__create(TYPE_VOID, NULL, NULL);
+                        break;
+                default:
+                        break;
                 }
-                Token *second_token = peek_token(); // ex: * or var
-                if (second_token.type == TOKEN_ASTERISK) {
-                        subtype = type__create() // TYPE_POINTER
+                param->type = type;
+
+                if (type_token.type == TOKEN_VOID && peek_token().type == TOKEN_CLOSEDPARENTHESIS) {
+                        free(head_param);
+                        return NULL;
+                }
+
+                Token *pointer_token_set = malloc(GOOD_IDEA*sizeof(*pointer_token_set));
+                pointer_token_set[0] = peek_token(); // ex: * or var
+                if (pointer_token_set.type == TOKEN_ASTERISK) {
+                        subtype = type;
+                        type = type__create(TYPE_POINTER, subtype, NULL); // TYPE_POINTER
+                        param->type = type;
                         consume_token(); // if *, consume it
                 }
-                Token *third_token = scan_token();
-                name = second_token.begin;
+                Token third_token = scan_token();
+                name = third_token.begin;
+                param->name = name;
 
-                Token *fourth_token = peek_token(); // ex: [
+                Token fourth_token = peek_token(); // ex: [
                 if (fourth_token.type == TOKEN_OPENBRACKET) {
                         consume_token();
                         Token fourth_one_token = scan_token(); // ex: NUM, ]
-                        if (fourth_one_token.type == TOKEN_DIGIT)
+                        if (fourth_one_token.type == TOKEN_DIGIT) {
                                 // yet to be implemented
-                        else {
+                                expect_token(TOKEN_CLOSEDBRACKET);
+                        } else {
                                 if (fourth_one_token.type != TOKEN_CLOSEDBRACKET) // not ]
-                                        perror;
+                                        perror("Error! Expected ']'");
                                 // yet to be implemented
                         }
-                } else  {
-                        putback_token();// [] processing done
+                        type = type__create(TYPE_ARRAY, type, NULL);
+                        param->type = type;
                 }
-                Token *fifth_token= scan_token();
-                if (third_token.type != TOKEN_COMMA)
-                        perror
+
+                param->next = NULL;
+
+                Token fifth_token = scan_token();
+                if (fifth_token.type != TOKEN_COMMA) {
+                        putback_token();
+                        break;
+                }
+
+                param->next = malloc(sizeof(*param->next));
+                param = param->next;
         }
 
-        return param_array;
+        return head_param;
 }
 
 Expr *parser_expr()
@@ -304,7 +366,8 @@ Stmt *parser_statement(Token token)
         case TOKEN_TINY:
         case TOKEN_INT:
         case TOKEN_LONG:
-        case TOKEN_TUX: {
+        case TOKEN_TUX:
+        case TOKEN_VOID: {
                 Decl *decl = parser_decl(token);
                 return stmt__create_decl(decl, NULL);
         }
@@ -316,24 +379,6 @@ Stmt *parser_statement(Token token)
         }
 }
 
-/*
- * [AI Note - Why head/tail was considered vs. dummy node]:
- * In this implementation, `Stmt *body = malloc(sizeof(*body))` is allocated as
- * a sentinel/dummy head node. The first actual statement is stored in `body->next`.
- *
- * Why an alternative with `head` and `tail` was previously suggested:
- * 1. Without head/tail, `body` is an uninitialized Stmt node (its `kind` and union
- *    contain undefined garbage values). Any code walking the AST list needs to know
- *    to skip the initial dummy node and start at `body->next`.
- * 2. With `head = NULL` and `tail = NULL`, no dummy node is allocated:
- *    - The first statement becomes `head = stmt; tail = stmt;`.
- *    - Subsequent statements append via `tail->next = stmt; tail = stmt;`.
- *    - The resulting list can be passed directly to `stmt__create_block(head, NULL)`
- *      so that the block's body points directly to the real first statement.
- *
- * Keeping this dummy-head approach is totally fine as long as downstream consumers
- * (destructors, code generators, printers) expect statements starting at `body->next`.
- */
 Stmt *parser_body(Token token)
 {
         Stmt *body = malloc(sizeof(*body));
@@ -342,6 +387,10 @@ Stmt *parser_body(Token token)
         if (token.type == TOKEN_OPENBRACE) {
                 loop = true;
                 token = scan_token();
+                if (token.type != TOKEN_CLOSEDBRACE)
+                        current = parser_statement(token);
+                else
+                        return NULL;
         }
         do {
                 current->next = parser_statement(token);
