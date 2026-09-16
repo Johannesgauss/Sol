@@ -37,12 +37,16 @@ Token peek_token()
         parser.backup = new_backup_ll;
         parser.backup->value = parser.head;
 
-        return get_token(&parser.head.begin);
+        Token token = get_token(&parser.head.begin);
+        parser.head = token;
+
+        return token;
 }
 
 Token scan_token()
 {
-        Token token; token = get_token(&parser.head.begin);
+        Token token = peek_token();
+        consume_token();
 
         return token;
 } 
@@ -77,8 +81,9 @@ void putback_all_tokens()
 
 bool expect_token(token_type token_type)
 {
-        scan_token();
+        peek_token();
         if (parser.head.type == token_type) {
+                consume_token();
                 return true;
         } else {
                 putback_token();

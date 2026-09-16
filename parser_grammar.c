@@ -2,8 +2,6 @@
 #include "ast.h"
 #include <stdio.h>
 #include <stdlib.h>
-#define GOOD_IDEA 51
-
 Expr *parser_expr();
 Decl *parser_decl(Token token);
 Decl *parser_function(char *name, type_kind kind);
@@ -59,7 +57,7 @@ Decl *parser_decl(Token token)
                 is_void = true;
                 break;
         default:
-                perror("Error! Invalid type in declaration");
+                fprintf(stderr, "Error! Invalid type in declaration");
                 return NULL;
         }
 
@@ -67,7 +65,7 @@ Decl *parser_decl(Token token)
 
         Token name_token = scan_token();
         if (name_token.type != TOKEN_NON_PROTECTED_WORD)
-                perror("Error! Expected identifier name");
+                fprintf(stderr, "Error! Expected identifier name");
 
         char *name = name_token.begin;
 
@@ -75,7 +73,7 @@ Decl *parser_decl(Token token)
                 return parser_function(name, kind);
 
         if (is_void)
-                perror("Error! Variable cannot be of type void");
+                fprintf(stderr, "Error! Variable cannot be of type void");
 
         type = type__create(kind, subtype, param_list);
 
@@ -84,7 +82,7 @@ Decl *parser_decl(Token token)
                 value = parser_expr();
 
         if (!expect_token(TOKEN_SEMICOLON))
-                perror("Error! Expected ';' at end of declaration");
+                fprintf(stderr, "Error! Expected ';' at end of declaration");
 
         return decl__create_value(name, type, value, NULL);
 }
@@ -103,7 +101,7 @@ Decl *parser_function(char *name, type_kind kind)
         } else {
                 putback_token();
                 if (!expect_token(TOKEN_SEMICOLON))
-                        perror("Error! Expected ';' after function declaration");
+                        fprintf(stderr, "Error! Expected ';' after function declaration");
                 return decl__create_code(name, type, NULL, NULL);
         }
 }
@@ -183,7 +181,7 @@ Param_list *parser_param_list()
                                 // dthain's structs do not support it, so I won't do the same so soon
                         } else {
                                 if (current_token.type != TOKEN_CLOSEDBRACKET) // not ]
-                                        perror("Error! Expected ']'");
+                                        fprintf(stderr, "Error! Expected ']'");
                                 // yet to be implemented
                         }
 
@@ -211,42 +209,13 @@ Param_list *parser_param_list()
         }
 
         if (!expect_token(TOKEN_CLOSEDPARENTHESIS))
-                perror("Error! Expected ')' after parameter list");
+                fprintf(stderr, "Error! Expected ')' after parameter list");
 
         return head_param;
 }
 
 Expr *parser_expr()
 {
-        
-        Token first_token = scan_token();
-        if (first_token.type == TOKEN_DIGIT) {
-
-        } else if (first_token.type == TOKEN_NON_PROTECTED_WORD) {
-                expr->left->name = first_token.begin
-        } else {
-                perror("Wrong A"); // tmp
-        }
-
-        Token second_token = scan_token();
-        switch(second_token.type) {
-        case TOKEN_PLUS:
-                expr->kind = EXPR_ADD;
-        default:
-                perror("Non-existent operation");
-        }
-
-
-        Token first_token = scan_token();
-        if (first_token.type == TOKEN_DIGIT) {
-
-        } else if (first_token.type == TOKEN_NON_PROTECTED_WORD) {
-                expr->right->name = first_token.begin
-        } else {
-                perror("Wrong B"); // tmp
-        }
-
-        return expr;
 }
 
 
@@ -254,18 +223,18 @@ Expr *parser_expr()
 Stmt *parser_if_else(Token token)
 {
         if (!expect_token(TOKEN_OPENPARENTHESIS))
-                perror("Error! if must be followed by an open parenthesis '('");
+                fprintf(stderr, "Error! if must be followed by an open parenthesis '('");
 
         Expr *expr = parser_expr();
         if (expr == NULL)
-                perror("Error inside if expression.");
+                fprintf(stderr, "Error inside if expression.");
 
         if (!expect_token(TOKEN_CLOSEDPARENTHESIS))
-                perror("Error! if must be followed by a closed parenthesis ')'");
+                fprintf(stderr, "Error! if must be followed by a closed parenthesis ')'");
 
         Stmt *body = parser_body(scan_token());
         if (body == NULL)
-                perror("Error with body");
+                fprintf(stderr, "Error with body");
 
         Stmt *else_body = NULL;
         Token next_token = peek_token();
@@ -282,26 +251,26 @@ Stmt *parser_if_else(Token token)
 Stmt *parser_for(Token token)
 {
         if (!expect_token(TOKEN_OPENPARENTHESIS))
-                perror("Error! for must be followed by an open parenthesis '('");
+                fprintf(stderr, "Error! for must be followed by an open parenthesis '('");
 
         Expr *init_expr = parser_expr();
         if (init_expr == NULL)
-                perror("Error inside for initialization expression");
+                fprintf(stderr, "Error inside for initialization expression");
 
         Expr *expr = parser_expr();
         if (expr == NULL)
-                perror("Error inside for loop expression");
+                fprintf(stderr, "Error inside for loop expression");
 
         Expr *next_expr = parser_expr();
         if (next_expr == NULL)
-                perror("Error inside for condition expression");
+                fprintf(stderr, "Error inside for condition expression");
 
         if (!expect_token(TOKEN_CLOSEDPARENTHESIS))
-                perror("Error! for must be followed by a closed parenthesis ')'");
+                fprintf(stderr, "Error! for must be followed by a closed parenthesis ')'");
 
         Stmt *body = parser_body(scan_token());
         if (body == NULL)
-                perror("Error with body");
+                fprintf(stderr, "Error with body");
 
         return stmt__create_for(init_expr, expr, next_expr, body, NULL);
 }
@@ -309,18 +278,18 @@ Stmt *parser_for(Token token)
 Stmt *parser_while(Token token)
 {
         if (!expect_token(TOKEN_OPENPARENTHESIS))
-                perror("Error! while must be followed by an open parenthesis '('");
+                fprintf(stderr, "Error! while must be followed by an open parenthesis '('");
 
         Expr *expr = parser_expr();
         if (expr == NULL)
-                perror("Error with while expression");
+                fprintf(stderr, "Error with while expression");
 
         if (!expect_token(TOKEN_CLOSEDPARENTHESIS))
-                perror("Error! while must be followed by a closed parenthesis ')'");
+                fprintf(stderr, "Error! while must be followed by a closed parenthesis ')'");
 
         Stmt *body = parser_body(scan_token());
         if (body == NULL)
-                perror("Error with body");
+                fprintf(stderr, "Error with body");
 
         return stmt__create_while(expr, body, NULL);
 }
@@ -331,7 +300,7 @@ Stmt *parser_return(Token token)
         if (!expect_token(TOKEN_SEMICOLON)) {
                 expr = parser_expr();
                 if (!expect_token(TOKEN_SEMICOLON))
-                        perror("Error! Expected ';' after return expression");
+                        fprintf(stderr, "Error! Expected ';' after return expression");
         }
 
         return stmt__create_return(expr, NULL);
@@ -340,7 +309,7 @@ Stmt *parser_return(Token token)
 Stmt *parser_break(Token token)
 {
         if (!expect_token(TOKEN_SEMICOLON))
-                perror("Error! Expected ';' after break");
+                fprintf(stderr, "Error! Expected ';' after break");
 
         return stmt__create_break(NULL);
 }
@@ -348,7 +317,7 @@ Stmt *parser_break(Token token)
 Stmt *parser_continue(Token token)
 {
         if (!expect_token(TOKEN_SEMICOLON))
-                perror("Error! Expected ';' after continue");
+                fprintf(stderr, "Error! Expected ';' after continue");
 
         return stmt__create_continue(NULL);
 }
@@ -357,12 +326,12 @@ Stmt *parser_goto(Token token)
 {
         Token label_token = scan_token();
         if (label_token.type != TOKEN_NON_PROTECTED_WORD)
-                perror("Error! Expected label name after goto");
+                fprintf(stderr, "Error! Expected label name after goto");
 
         char *label = label_token.begin;
 
         if (!expect_token(TOKEN_SEMICOLON))
-                perror("Error! Expected ';' after goto label");
+                fprintf(stderr, "Error! Expected ';' after goto label");
 
         return stmt__create_goto(label, NULL);
 }
