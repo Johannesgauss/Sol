@@ -1,37 +1,7 @@
-#include "parser_util.h"
-#include "ast.h"
+#include "parser_grammar.h"
 #include <stdio.h>
 #include <stdlib.h>
-Expr *parser_expr();
-Decl *parser_decl(Token token);
-Decl *parser_function(char *name, type_kind kind);
-Param_list *parser_param_list();
-Stmt *parser_if_else(Token token);
-Stmt *parser_for(Token token);
-Stmt *parser_while(Token token);
-Stmt *parser_return(Token token);
-Stmt *parser_break(Token token);
-Stmt *parser_continue(Token token);
-Stmt *parser_goto(Token token);
-Stmt *parser_statement(Token token);
-Stmt *parser_body(Token token);
 
-/*
-        if (EXPRESSION) TEXT
-
-        IF grammar:
-        S-> if(E)T
-
-        text = set of sentences. Ex:
-        {
-                ...
-        }
-        
-*/
-
-// What will see ';': decls, not stmts (except return, maybe)
-
-// A @ B, where @ = {* + - / % == != >= <= > < =}
 Decl *parser_decl(Token token)
 {
         type_kind kind;
@@ -214,11 +184,70 @@ Param_list *parser_param_list()
         return head_param;
 }
 
-Expr *parser_expr()
+
+unsigned long long int parser_number(Token token)
 {
+        unsigned long long int result = 0;
+        for (char *p = token.begin; p < token.end; p++) {
+                char digit = *p - '0';
+                result = result*10 + digit;
+        }
+        return result;
 }
 
+Expr *parser_expr_internal(binding_power bp)
+{
+        Expr *left = NULL, *right = NULL; expr_kind kind;
 
+        Token current_token = scan_token();
+
+        if (current_token.type == TOKEN_DIGIT) {
+                left = expr__create_integer_literal(parser_number(current_token));
+                current_token = scan_token();
+        } else if (current_token.type == TOKEN_OPENPARENTHESIS) {
+                left = parser_expr_internal(POWER_NULL);
+                expect_token(TOKEN_CLOSEDPARENTHESIS);
+                current_token = scan_token();
+        } else if (current_token.type == TOKEN_NON_PROTECTED_WORD) {
+                left = expr__create_name(current_token.begin);
+                current_token = scan_token();
+        }
+        switch (current_token.type) {
+        case TOKEN_EQUAL:
+                if (bp > POWER_ASSIGN) {
+                        putback_token();
+                        break;
+                }
+                bp = POWER_ASSIGN;
+                kind = EXPR_ASSIGN;
+                right = parser_expr_internal(bp);
+                return expr__create(kind, left, right);
+        case TOKEN_PLUS:
+                if (bp > POWER_ADD) {
+                        putback_token();
+                        break;
+                }
+                bp = POWER_ADD;
+                kind = EXPR_ADD;
+                right = parser_expr_internal(bp);
+                return expr__create(kind, left, right);
+        case TOKEN_ASTERISK:
+                if (bp > POWER_MUL) {
+                        putback_token();
+                        break;
+                }
+                bp = POWER_MUL;
+                kind = EXPR_MUL;
+                right = parser_expr_internal(bp);
+                return expr__create(kind, left, right);
+        case TOKEN_SEMICOLON:
+        case TOKEN_CLOSEDPARENTHESIS:
+        default:
+                putback_token();
+                break;
+        }
+        return left;
+}
 
 Stmt *parser_if_else(Token token)
 {
@@ -364,9 +393,16 @@ Stmt *parser_statement(Token token)
         }
         case TOKEN_OPENBRACE:
                 return parser_body(token);
-        default:
+        default: {
                 putback_token();
+                Expr *expr = parser_expr();
+                if (expr) {
+                        if (!expect_token(TOKEN_SEMICOLON))
+                                fprintf(stderr, "Error! Expected ';' after expression");
+                        return stmt__create_expr(expr, NULL);
+                }
                 return NULL;
+        }
         }
 }
 
@@ -392,3 +428,4 @@ Stmt *parser_body(Token token)
 
         return body;
 }
+
