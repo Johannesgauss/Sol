@@ -1,7 +1,7 @@
 #include "lexer.h"
 #include <stdbool.h>
 
-Token parser_init();
+Token parser_init(char *src);
 Token peek_token();
 Token scan_token();
 void consume_all_tokens();
