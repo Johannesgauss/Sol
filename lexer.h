@@ -1,6 +1,7 @@
 #include <ctype.h>
 #include <stddef.h>
 #include <string.h>
+#include "string.h"
 typedef enum token_type {
 	TOKEN_PLUS,
 	TOKEN_MINUS,
@@ -54,7 +55,7 @@ typedef enum token_type {
 } token_type;
 typedef struct Token {
 	token_type type;
-	char *begin, *end;
+	str data;
 } Token;
 
 static inline Token get_token(char **src_ptr)
@@ -69,7 +70,8 @@ static inline Token get_token(char **src_ptr)
 			if (*src != '\0') src++;
 		} else break;
 	}
-	Token self; self.begin = src; self.end = src;
+	char *begin = src;
+	Token self;
 	if (*src == '\0') {
 		self.type = TOKEN_EOF;
 		goto END;
@@ -191,34 +193,34 @@ static inline Token get_token(char **src_ptr)
 		size_t len = 0; while (isalnum(*src) || *src == '_') {
 			src++; len++;
 		}
-		if (len == 2 && !memcmp(self.begin, "if", len)) {
+		if (len == 2 && !memcmp(begin, "if", len)) {
 			self.type = TOKEN_IF;
-		} else if (len == 4 && !memcmp(self.begin, "else", len)) {
+		} else if (len == 4 && !memcmp(begin, "else", len)) {
 			self.type = TOKEN_ELSE;
-		} else if (len == 5 && !memcmp(self.begin, "while", len)) {
+		} else if (len == 5 && !memcmp(begin, "while", len)) {
 			self.type = TOKEN_WHILE;
-		} else if (len == 3 && !memcmp(self.begin, "for", len)) {
+		} else if (len == 3 && !memcmp(begin, "for", len)) {
 			self.type = TOKEN_FOR;
-		} else if (len == 6 && !memcmp(self.begin, "return", len)) {
+		} else if (len == 6 && !memcmp(begin, "return", len)) {
 			self.type = TOKEN_RETURN;
-		} else if (len == 8 && !memcmp(self.begin, "continue", len)) {
+		} else if (len == 8 && !memcmp(begin, "continue", len)) {
 			self.type = TOKEN_CONTINUE;
-		} else if (len == 5 && !memcmp(self.begin, "break", len)) {
+		} else if (len == 5 && !memcmp(begin, "break", len)) {
 			self.type = TOKEN_BREAK;
-		} else if (len == 4 && !memcmp(self.begin, "goto", len)) {
+		} else if (len == 4 && !memcmp(begin, "goto", len)) {
 			self.type = TOKEN_GOTO;
 		// types
-		} else if (len == 4 && !memcmp(self.begin, "char", len)) {
+		} else if (len == 4 && !memcmp(begin, "char", len)) {
 			self.type = TOKEN_CHAR;
-		} else if (len == 4 && !memcmp(self.begin, "tiny", len)) {
+		} else if (len == 4 && !memcmp(begin, "tiny", len)) {
 			self.type = TOKEN_TINY;
-		} else if (len == 3 && !memcmp(self.begin, "int", len)) {
+		} else if (len == 3 && !memcmp(begin, "int", len)) {
 			self.type = TOKEN_INT;
-		} else if (len == 4 && !memcmp(self.begin, "long", len)) {
+		} else if (len == 4 && !memcmp(begin, "long", len)) {
 			self.type = TOKEN_LONG;
-		} else if (len == 3 && !memcmp(self.begin, "tux", len)) {
+		} else if (len == 3 && !memcmp(begin, "tux", len)) {
 			self.type = TOKEN_TUX;
-		} else if (len == 4 && !memcmp(self.begin, "void", len)) {
+		} else if (len == 4 && !memcmp(begin, "void", len)) {
 			self.type = TOKEN_VOID;
 		} else {
 			self.type = TOKEN_NON_PROTECTED_WORD;
@@ -228,7 +230,7 @@ static inline Token get_token(char **src_ptr)
 		self.type = TOKEN_ERROR;
 	}
 END:
-	self.end = src;
+	self.data = str__create(begin, (size_t)(src - begin));
 	*src_ptr = src;
 	return self;
 }
