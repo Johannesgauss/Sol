@@ -225,13 +225,16 @@ Expr *parser_expr_internal(binding_power bp)
 	switch (current_token.type) {
 	case TOKEN_OPENPARENTHESIS:;
 		consume_token();
-		Token next = scan_token();
+		Token next = peek_token();
 		kind = EXPR_CALL;
 		if (next.type != TOKEN_CLOSEDPARENTHESIS) {
 			putback_token();
 			right = parser_expr_internal(POWER_NULL);
 			expect_token(TOKEN_CLOSEDPARENTHESIS);
-		} else right = NULL;
+		} else {
+			consume_token();
+			right = NULL;
+		}
 		return expr__create(kind, left, right);
 		break;
 	case TOKEN_COMMA:
@@ -274,6 +277,46 @@ Expr *parser_expr_internal(binding_power bp)
 		kind = EXPR_NEQ;
 		right = parser_expr_internal(bp);
 		return expr__create(kind, left, right);
+	case TOKEN_LT:
+		if (bp > POWER_CMP) {
+			putback_token();
+			break;
+		}
+		consume_token();
+		bp = POWER_CMP;
+		kind = EXPR_LT;
+		right = parser_expr_internal(bp);
+		return expr__create(kind, left, right);
+	case TOKEN_LE:
+		if (bp > POWER_CMP) {
+			putback_token();
+			break;
+		}
+		consume_token();
+		bp = POWER_CMP;
+		kind = EXPR_LE;
+		right = parser_expr_internal(bp);
+		return expr__create(kind, left, right);
+	case TOKEN_GT:
+		if (bp > POWER_CMP) {
+			putback_token();
+			break;
+		}
+		consume_token();
+		bp = POWER_CMP;
+		kind = EXPR_GT;
+		right = parser_expr_internal(bp);
+		return expr__create(kind, left, right);
+	case TOKEN_GE:
+		if (bp > POWER_CMP) {
+			putback_token();
+			break;
+		}
+		consume_token();
+		bp = POWER_CMP;
+		kind = EXPR_GE;
+		right = parser_expr_internal(bp);
+		return expr__create(kind, left, right);
 	case TOKEN_PLUS:
 		if (bp > POWER_ADD) {
 			putback_token();
@@ -284,6 +327,16 @@ Expr *parser_expr_internal(binding_power bp)
 		kind = EXPR_ADD;
 		right = parser_expr_internal(bp);
 		return expr__create(kind, left, right);
+	case TOKEN_MINUS:
+		if (bp > POWER_ADD) {
+			putback_token();
+			break;
+		}
+		consume_token();
+		bp = POWER_ADD;
+		kind = EXPR_SUB;
+		right = parser_expr_internal(bp);
+		return expr__create(kind, left, right);
 	case TOKEN_ASTERISK:
 		if (bp > POWER_MUL) {
 			putback_token();
@@ -292,6 +345,26 @@ Expr *parser_expr_internal(binding_power bp)
 		consume_token();
 		bp = POWER_MUL;
 		kind = EXPR_MUL;
+		right = parser_expr_internal(bp);
+		return expr__create(kind, left, right);
+	case TOKEN_SLASH:
+		if (bp > POWER_MUL) {
+			putback_token();
+			break;
+		}
+		consume_token();
+		bp = POWER_MUL;
+		kind = EXPR_DIV;
+		right = parser_expr_internal(bp);
+		return expr__create(kind, left, right);
+	case TOKEN_PERCENT:
+		if (bp > POWER_MUL) {
+			putback_token();
+			break;
+		}
+		consume_token();
+		bp = POWER_MUL;
+		kind = EXPR_MOD;
 		right = parser_expr_internal(bp);
 		return expr__create(kind, left, right);
 	case TOKEN_SEMICOLON:
@@ -336,10 +409,12 @@ Stmt *parser_for(Token token)
 	if (!expect_token(TOKEN_OPENPARENTHESIS))
 		fprintf(stderr, "Error! for must be followed by an open parenthesis '('");
 
-	Token first_token = scan_token();
+	Token first_token = peek_token();
 	Stmt *init_stmt = NULL;
 	if (first_token.type != TOKEN_SEMICOLON) {
 		init_stmt = parser_statement(first_token);
+	} else {
+		consume_token();
 	}
 
 	Expr *expr = NULL;
@@ -436,18 +511,25 @@ Stmt *parser_statement(Token token)
 {
 	switch (token.type) {
 	case TOKEN_IF:
+		consume_token();
 		return parser_if_else(token);
 	case TOKEN_FOR:
+		consume_token();
 		return parser_for(token);
 	case TOKEN_WHILE:
+		consume_token();
 		return parser_while(token);
 	case TOKEN_RETURN:
+		consume_token();
 		return parser_return(token);
 	case TOKEN_BREAK:
+		consume_token();
 		return parser_break(token);
 	case TOKEN_CONTINUE:
+		consume_token();
 		return parser_continue(token);
 	case TOKEN_GOTO:
+		consume_token();
 		return parser_goto(token);
 	case TOKEN_CHAR:
 	case TOKEN_TINY:
@@ -455,10 +537,12 @@ Stmt *parser_statement(Token token)
 	case TOKEN_LONG:
 	case TOKEN_TUX:
 	case TOKEN_VOID: {
+		consume_token();
 		Decl *decl = parser_decl(token);
 		return stmt__create_decl(decl, NULL);
 	}
 	case TOKEN_OPENBRACE:
+		consume_token();
 		return parser_body(token);
 	default: {
 		putback_token();
@@ -477,22 +561,25 @@ Stmt *parser_body(Token token)
 {
 	Stmt *current;
 	if (token.type == TOKEN_OPENBRACE) {
-		token = scan_token();
+		token = peek_token();
 		if (token.type != TOKEN_CLOSEDBRACE)
 			current = parser_statement(token);
-		else
+		else {
+			consume_token();
 			return NULL;
+		}
 	} else {
 		return parser_statement(token);
 	}
-	token = scan_token();
+	token = peek_token();
 	Stmt *body = current;
 	while (token.type != TOKEN_CLOSEDBRACE) {
 		current->next = parser_statement(token);
 		if (current->next)
 			current = current->next;
-		token = scan_token();
+		token = peek_token();
 	}
+	consume_token();
 
 	return body;
 }

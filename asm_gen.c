@@ -48,9 +48,9 @@ void expr_codegen(Expr *expr)
 	case EXPR_SUB:
 		expr_codegen(expr->left);
 		expr_codegen(expr->right);
-		emit("\tsubq %s, %s", scratch_name(expr->left->reg), scratch_name(expr->right->reg));
-		expr->reg = expr->right->reg;
-		scratch_free(expr->left->reg);
+		emit("\tsubq %s, %s", scratch_name(expr->right->reg), scratch_name(expr->left->reg));
+		expr->reg = expr->left->reg;
+		scratch_free(expr->right->reg);
 		break;
 
 	case EXPR_MUL:
@@ -74,57 +74,56 @@ void expr_codegen(Expr *expr)
 	case EXPR_EQ:
 		expr_codegen(expr->left);
 		expr_codegen(expr->right);
-		emit("\tcmpq %s, %s", scratch_name(expr->left->reg), scratch_name(expr->right->reg));
-		emit("\tsete %al");
-		emit("\tmovzbq %al, %s", scratch_name(expr->right->reg));
-		scratch_free(expr->left->reg);
-		//scratch_free(expr->right->reg); scratch_free(expr->reg);
-		expr->reg = expr->right->reg;
+		emit("\tcmpq %s, %s", scratch_name(expr->right->reg), scratch_name(expr->left->reg));
+		emit("\tsete %%al");
+		emit("\tmovzbq %%al, %s", scratch_name(expr->left->reg));
+		scratch_free(expr->right->reg);
+		expr->reg = expr->left->reg;
 		break;
 	case EXPR_GE:
 		expr_codegen(expr->left);
 		expr_codegen(expr->right);
-		emit("\tcmpq %s, %s", scratch_name(expr->left->reg), scratch_name(expr->right->reg));
-		emit("\tsetge %al");
-		emit("\tmovzbq %al, %s", scratch_name(expr->right->reg));
-		scratch_free(expr->left->reg);
-		expr->reg = expr->right->reg;
+		emit("\tcmpq %s, %s", scratch_name(expr->right->reg), scratch_name(expr->left->reg));
+		emit("\tsetge %%al");
+		emit("\tmovzbq %%al, %s", scratch_name(expr->left->reg));
+		scratch_free(expr->right->reg);
+		expr->reg = expr->left->reg;
 		break;
 	case EXPR_NEQ:
 		expr_codegen(expr->left);
 		expr_codegen(expr->right);
-		emit("\tcmpq %s, %s", scratch_name(expr->left->reg), scratch_name(expr->right->reg));
-		emit("\tsetne %al");
-		emit("\tmovzbq %al, %s", scratch_name(expr->right->reg));
-		scratch_free(expr->left->reg);
-		expr->reg = expr->right->reg;
+		emit("\tcmpq %s, %s", scratch_name(expr->right->reg), scratch_name(expr->left->reg));
+		emit("\tsetne %%al");
+		emit("\tmovzbq %%al, %s", scratch_name(expr->left->reg));
+		scratch_free(expr->right->reg);
+		expr->reg = expr->left->reg;
 		break;
 	case EXPR_LT:
 		expr_codegen(expr->left);
 		expr_codegen(expr->right);
-		emit("\tcmpq %s, %s", scratch_name(expr->left->reg), scratch_name(expr->right->reg));
-		emit("\tsetl %al");
-		emit("\tmovzbq %al, %s", scratch_name(expr->right->reg));
-		scratch_free(expr->left->reg);
-		expr->reg = expr->right->reg;
+		emit("\tcmpq %s, %s", scratch_name(expr->right->reg), scratch_name(expr->left->reg));
+		emit("\tsetl %%al");
+		emit("\tmovzbq %%al, %s", scratch_name(expr->left->reg));
+		scratch_free(expr->right->reg);
+		expr->reg = expr->left->reg;
 		break;
 	case EXPR_LE:
 		expr_codegen(expr->left);
 		expr_codegen(expr->right);
-		emit("\tcmpq %s, %s", scratch_name(expr->left->reg), scratch_name(expr->right->reg));
-		emit("\tsetle %al");
-		emit("\tmovzbq %al, %s", scratch_name(expr->right->reg));
-		scratch_free(expr->left->reg);
-		expr->reg = expr->right->reg;
+		emit("\tcmpq %s, %s", scratch_name(expr->right->reg), scratch_name(expr->left->reg));
+		emit("\tsetle %%al");
+		emit("\tmovzbq %%al, %s", scratch_name(expr->left->reg));
+		scratch_free(expr->right->reg);
+		expr->reg = expr->left->reg;
 		break;
 	case EXPR_GT:
 		expr_codegen(expr->left);
 		expr_codegen(expr->right);
-		emit("\tcmpq %s, %s", scratch_name(expr->left->reg), scratch_name(expr->right->reg));
-		emit("\tsetg %al");
-		emit("\tmovzbq %al, %s", scratch_name(expr->right->reg));
-		scratch_free(expr->left->reg);
-		expr->reg = expr->right->reg;
+		emit("\tcmpq %s, %s", scratch_name(expr->right->reg), scratch_name(expr->left->reg));
+		emit("\tsetg %%al");
+		emit("\tmovzbq %%al, %s", scratch_name(expr->left->reg));
+		scratch_free(expr->right->reg);
+		expr->reg = expr->left->reg;
 		break;
 	case EXPR_DIV:
 	case EXPR_MOD:
@@ -337,7 +336,7 @@ void stmt_codegen(Stmt *stmt)
 		expr_codegen(stmt->for_block.next_expr);
 		scratch_free(stmt->for_block.next_expr->reg);
 		emit("\tjmp %s", label_name(for_init_label));
-		emit("\t%s:", label_name(for_done_label));
+		emit("%s:", label_name(for_done_label));
 		break;
 	case STMT_WHILE:;
 		/*init_expr

@@ -8,7 +8,7 @@ void param_list_resolve(Param_list *param_list, int which)
 	if (!param_list) return;
 
 	type_kind kind = param_list->type->kind;
-	param_list->symbol = symbol__create(SYMBOL_PARAM, param_list->type, param_list->name, which+1, (Ast){.param_list = param_list}); //automatically "binds"
+	param_list->symbol = symbol__create(SYMBOL_PARAM, param_list->type, param_list->name, which, (Ast){.param_list = param_list}); //automatically "binds"
 	param_list_resolve(param_list->next, which + 1);
 	//if (kind == TYPE_INTEGER) { }
 }
@@ -79,16 +79,22 @@ void expr_resolve(Expr *expr)
 		}
 	}
 }
+static int local_which = 0;
+
 void decl_resolve(Decl *decl)
 {
 	if (!decl) return;
 
 	symbol_t kind = scope_level() > 1 ? SYMBOL_LOCAL : (decl->is_extern ? SYMBOL_EXTERN : SYMBOL_GLOBAL);
-	decl->symbol = symbol__create(kind, decl->type, decl->name, 0, (Ast) {.decl = decl});
-	// why which = 0???
+	int which = 0;
+	if (kind == SYMBOL_LOCAL) {
+		which = ++local_which;
+	}
+	decl->symbol = symbol__create(kind, decl->type, decl->name, which, (Ast) {.decl = decl});
 
 	if (decl->type->kind == TYPE_FUNCTION || decl->type->kind == TYPE_VOID) {
 		if (!decl->code) goto END;
+		local_which = 0;
 		scope_enter();
 		param_list_resolve(decl->type->params, 0);
 		stmt_resolve(decl->code);
