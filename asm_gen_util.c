@@ -50,8 +50,11 @@ const char *label_name(int label)
 
 const char *symbol_codegen(Symbol *symbol)
 {
-	if (symbol->kind == SYMBOL_GLOBAL)
-		return symbol->name.data;
+	if (symbol->kind == SYMBOL_GLOBAL || symbol->kind == SYMBOL_EXTERN) {
+		static char buffer[128];
+		snprintf(buffer, sizeof(buffer), "%.*s", (int)symbol->name.size, symbol->name.data);
+		return buffer;
+	}
 	if (symbol->kind == SYMBOL_PARAM) {
 		switch (symbol->which) {
 		case 0: return "%rdi";

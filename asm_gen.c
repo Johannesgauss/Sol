@@ -23,6 +23,15 @@ void expr_codegen(Expr *expr)
 		expr->reg = scratch_alloc();
 		emit("\tmovq $%d, %s", expr->char_value, scratch_name(expr->reg));
 		break;
+	case EXPR_STRING_LITERAL:;
+		int str_label = label_create();
+		emit(".data");
+		emit("%s:", label_name(str_label));
+		emit("\t.string \"%.*s\"", (int)expr->name.size, expr->str_literal);
+		emit(".text");
+		expr->reg = scratch_alloc();
+		emit("\tleaq %s(%%rip), %s", label_name(str_label), scratch_name(expr->reg));
+		break;
 	case EXPR_NAME:
 		expr->reg = scratch_alloc();
 		emit("\tmovq %s, %s", symbol_codegen(expr->symbol), scratch_name(expr->reg));
@@ -160,7 +169,7 @@ void expr_codegen(Expr *expr)
 			emit("\tmovq %s, %s", scratch_name(arg->reg), arg_regs[i]);
 			scratch_free(arg->reg);
 		}
-		emit("\tcall %s", expr->symbol->name.data);
+		emit("\tcall %.*s", (int)expr->symbol->name.size, expr->symbol->name.data);
 
 		Type *ret_type = expr->symbol->type->subtype ? expr->symbol->type->subtype : expr->symbol->type;
 		if (ret_type->kind != TYPE_VOID) {
@@ -177,6 +186,10 @@ static char fn_name[32]; // remove it later!
 void decl_codegen(Decl *decl)
 {
 	if (!decl) return;
+	if (decl->is_extern || (decl->symbol && decl->symbol->kind == SYMBOL_EXTERN)) {
+		decl_codegen(decl->next);
+		return;
+	}
 	switch (decl->type->kind) {
 	case TYPE_TINY:
 	case TYPE_CHARACTER:
@@ -207,7 +220,8 @@ void decl_codegen(Decl *decl)
 		break;
 	case TYPE_VOID:	
 	case TYPE_FUNCTION:	
-		snprintf(fn_name, sizeof(fn_name),"%s", decl->name.data);
+		if (!decl->code) break;
+		snprintf(fn_name, sizeof(fn_name), "%.*s", (int)decl->name.size, decl->name.data);
 
 		emit("\t.global %s", fn_name);
 
@@ -225,7 +239,7 @@ void decl_codegen(Decl *decl)
 		emit("\tpushq %r8");
 		emit("\tpushq %r9");
 
-		emit("\tsubq $16, %rsp"); // System V AMD64 ABI 16-multiple rule, just, why?! Why have they got to obligate us to do it?!
+		emit("\tsubq $24, %rsp"); // System V AMD64 ABI 16-multiple rule, just, why?! Why have they got to obligate us to do it?!
 
 		// callee save
 		emit("\tpushq %rbx");
@@ -245,7 +259,7 @@ void decl_codegen(Decl *decl)
 		emit("\tpopq %r12");
 		emit("\tpopq %rbx");
 
-		emit("\taddq $16, %rsp");
+		emit("\taddq $24, %rsp");
 
 		// arg pops
 		emit("\tpopq %r9");

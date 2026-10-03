@@ -27,6 +27,12 @@ const char *symbol_codegen(Symbol *symbol);
 
 void emit(const char *fmt, ...);
 
+void decl_codegen(Decl *decl);
+void stmt_codegen(Stmt *stmt);
+void expr_codegen(Expr *expr);
+
+extern FILE *file;
+
 //void emit_label(const char *label);
 
 #endif // SOL_ASM_GEN_UTIL_H
