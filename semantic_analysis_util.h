@@ -8,7 +8,8 @@
 typedef enum {
 	SYMBOL_LOCAL,
 	SYMBOL_PARAM,
-	SYMBOL_GLOBAL
+	SYMBOL_GLOBAL,
+	SYMBOL_EXTERN
 } symbol_t;
 
 typedef union Ast {

@@ -44,7 +44,7 @@ void stmt_resolve(Stmt *stmt)
 		expr_resolve(stmt->expr);
 		break;
 	case STMT_FOR:
-		expr_resolve(stmt->for_block.init_expr);
+		stmt_resolve(stmt->for_block.init_stmt);
 		expr_resolve(stmt->for_block.expr);
 		expr_resolve(stmt->for_block.next_expr);
 		stmt_resolve(stmt->for_block.body);
@@ -83,21 +83,18 @@ void decl_resolve(Decl *decl)
 {
 	if (!decl) return;
 
-	symbol_t kind = scope_level() > 1 ? SYMBOL_LOCAL : SYMBOL_GLOBAL;
+	symbol_t kind = scope_level() > 1 ? SYMBOL_LOCAL : (decl->is_extern ? SYMBOL_EXTERN : SYMBOL_GLOBAL);
 	decl->symbol = symbol__create(kind, decl->type, decl->name, 0, (Ast) {.decl = decl});
 	// why which = 0???
-	
-	expr_resolve(decl->value);
 
 	if (decl->type->kind == TYPE_FUNCTION || decl->type->kind == TYPE_VOID) {
-		scope_bind(*decl->symbol);
 		if (!decl->code) goto END;
 		scope_enter();
 		param_list_resolve(decl->type->params, 0);
 		stmt_resolve(decl->code);
 		scope_exit();
 	} else {
-		scope_bind(*decl->symbol);
+		expr_resolve(decl->value);
 	}
 END:
 	decl_resolve(decl->next);
