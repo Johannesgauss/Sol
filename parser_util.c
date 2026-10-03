@@ -24,10 +24,8 @@ Token parser_init(char *src)
 {
 	parser.head.data.data = src;
 	parser.head.data.size = 0;
+	parser.backup = NULL;
 	parser.head = scan_token();
-	parser.backup = malloc(sizeof(*parser.backup));
-	parser.backup->value = parser.head;
-	parser.backup->previous = NULL;
 
 	return parser.head;
 }
@@ -56,12 +54,13 @@ Token scan_token()
 
 void consume_all_tokens()
 {
-	while (parser.backup->previous)
+	while (parser.backup && parser.backup->previous)
 		consume_token();
 }
 
 void consume_token()
 {
+	if (!parser.backup) return;
 	struct backup_linked_list *tail;
 	tail = parser.backup->previous;
 	free(parser.backup);
@@ -70,6 +69,7 @@ void consume_token()
 
 void putback_token()
 {
+	if (!parser.backup) return;
 	parser.head = parser.backup->value;
 	struct backup_linked_list *tail = parser.backup->previous;
 	free(parser.backup);
@@ -78,7 +78,7 @@ void putback_token()
 
 void putback_all_tokens()
 {
-	while (parser.backup->previous)
+	while (parser.backup && parser.backup->previous)
 		putback_token();
 }
 

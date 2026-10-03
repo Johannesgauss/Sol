@@ -6,13 +6,16 @@ typedef enum binding_power
 {
 	POWER_NULL,
 	POWER_ASSIGN,
+	POWER_CMP,
 	POWER_ADD,
 	POWER_MUL,
-	POWER_PARENTHESIS
+	POWER_PARENTHESIS,
+	POWER_PARAM_COMMA
 } binding_power;
 #define parser_expr() parser_expr_internal(POWER_NULL)
 
 Expr *parser_expr_internal(binding_power bp);
+Decl *parser_program(char *src);
 Decl *parser_decl(Token token);
 Decl *parser_function(str name, type_kind kind);
 Param_list *parser_param_list();

@@ -4,6 +4,12 @@
 
 Decl *parser_decl(Token token)
 {
+	bool is_extern = false;
+	if (token.type == TOKEN_EXTERN) {
+		is_extern = true;
+		token = scan_token();
+	}
+
 	type_kind kind;
 	bool is_void = false;
 	switch (token.type) {
@@ -39,8 +45,11 @@ Decl *parser_decl(Token token)
 
 	str name = name_token.data;
 
-	if (expect_token(TOKEN_OPENPARENTHESIS))
-		return parser_function(name, kind);
+	if (expect_token(TOKEN_OPENPARENTHESIS)) {
+		Decl *decl = parser_function(name, kind);
+		if (decl) decl->is_extern = is_extern;
+		return decl;
+	}
 
 	if (is_void)
 		fprintf(stderr, "Error! Variable cannot be of type void");
@@ -54,7 +63,9 @@ Decl *parser_decl(Token token)
 	if (!expect_token(TOKEN_SEMICOLON))
 		fprintf(stderr, "Error! Expected ';' at end of declaration");
 
-	return decl__create_value(name, type, value, NULL);
+	Decl *decl = decl__create_value(name, type, value, NULL);
+	if (decl) decl->is_extern = is_extern;
+	return decl;
 }
 
 Decl *parser_function(str name, type_kind kind)
@@ -98,15 +109,6 @@ Param_list *parser_param_list()
 
 		current_token = scan_token();
 
-		// I do need more knowledge about semantic analysis before doing that, so I'll just ignore pointer for now
-		while (current_token.type == TOKEN_ASTERISK) {
-			param->type = type__create(TYPE_POINTER, NULL, NULL);
-			param->type->subtype = malloc(sizeof(*param->type->subtype));
-
-			param->type = param->type->subtype;
-			current_token = scan_token();
-		}
-
 		type_kind kind;
 		switch (type_token.type) {
 		case TOKEN_CHAR:
@@ -127,10 +129,17 @@ Param_list *parser_param_list()
 		case TOKEN_VOID:
 			kind = TYPE_VOID;
 			break;
+		default:
+			kind = TYPE_INTEGER;
+			break;
 		}
-		param->type = type_token;
 
-		param->type = type;
+		Type *param_type = type__create(kind, NULL, NULL);
+		while (current_token.type == TOKEN_ASTERISK) {
+			param_type = type__create(TYPE_POINTER, param_type, NULL);
+			current_token = scan_token();
+		}
+		param->type = param_type;
 
 		param->name = current_token.data;
 		param->next = NULL;
@@ -174,8 +183,6 @@ Param_list *parser_param_list()
 	if (!expect_token(TOKEN_CLOSEDPARENTHESIS))
 		fprintf(stderr, "Error! Expected ')' after parameter list");
 
-	type = type__create(type_token.type, NULL, NULL);
-		
 	return head_param;
 }
 
@@ -196,25 +203,75 @@ Expr *parser_expr_internal(binding_power bp)
 
 	Token current_token = scan_token();
 
-	if (current_token.type == TOKEN_DIGIT) {
+	switch (current_token.type) {
+	case TOKEN_DIGIT:
 		left = expr__create_integer_literal(parser_number(current_token));
-		current_token = scan_token();
-	} else if (current_token.type == TOKEN_OPENPARENTHESIS) {
+		break;
+	case TOKEN_OPENPARENTHESIS:
 		left = parser_expr_internal(POWER_NULL);
 		expect_token(TOKEN_CLOSEDPARENTHESIS);
-		current_token = scan_token();
-	} else if (current_token.type == TOKEN_NON_PROTECTED_WORD) {
+		break;
+	case TOKEN_NON_PROTECTED_WORD:
 		left = expr__create_name(current_token.data);
-		current_token = scan_token();
+		break;
+	case TOKEN_STRING:
+		left = expr__create_string_literal(current_token.data.data + 1);
+		left->name.size = current_token.data.size >= 2 ? current_token.data.size - 2 : 0;
+		break;
+	default:;
 	}
+
+	current_token = peek_token();
 	switch (current_token.type) {
+	case TOKEN_OPENPARENTHESIS:;
+		consume_token();
+		Token next = scan_token();
+		kind = EXPR_CALL;
+		if (next.type != TOKEN_CLOSEDPARENTHESIS) {
+			putback_token();
+			right = parser_expr_internal(POWER_NULL);
+			expect_token(TOKEN_CLOSEDPARENTHESIS);
+		} else right = NULL;
+		return expr__create(kind, left, right);
+		break;
+	case TOKEN_COMMA:
+		if (bp > POWER_PARAM_COMMA) {
+			putback_token();
+			break;
+		}
+		consume_token();
+		bp = POWER_PARAM_COMMA;
+		kind = EXPR_COMMA;
+		right = parser_expr_internal(bp);
+		return expr__create(kind, left, right);
 	case TOKEN_EQUAL:
 		if (bp > POWER_ASSIGN) {
 			putback_token();
 			break;
 		}
+		consume_token();
 		bp = POWER_ASSIGN;
 		kind = EXPR_ASSIGN;
+		right = parser_expr_internal(bp);
+		return expr__create(kind, left, right);
+	case TOKEN_EQUALEQUAL:
+		if (bp > POWER_CMP) {
+			putback_token();
+			break;
+		}
+		consume_token();
+		bp = POWER_CMP;
+		kind = EXPR_EQ;
+		right = parser_expr_internal(bp);
+		return expr__create(kind, left, right);
+	case TOKEN_DIFFERENT:
+		if (bp > POWER_CMP) {
+			putback_token();
+			break;
+		}
+		consume_token();
+		bp = POWER_CMP;
+		kind = EXPR_NEQ;
 		right = parser_expr_internal(bp);
 		return expr__create(kind, left, right);
 	case TOKEN_PLUS:
@@ -222,6 +279,7 @@ Expr *parser_expr_internal(binding_power bp)
 			putback_token();
 			break;
 		}
+		consume_token();
 		bp = POWER_ADD;
 		kind = EXPR_ADD;
 		right = parser_expr_internal(bp);
@@ -231,6 +289,7 @@ Expr *parser_expr_internal(binding_power bp)
 			putback_token();
 			break;
 		}
+		consume_token();
 		bp = POWER_MUL;
 		kind = EXPR_MUL;
 		right = parser_expr_internal(bp);
@@ -277,26 +336,39 @@ Stmt *parser_for(Token token)
 	if (!expect_token(TOKEN_OPENPARENTHESIS))
 		fprintf(stderr, "Error! for must be followed by an open parenthesis '('");
 
-	Expr *init_expr = parser_expr();
-	if (init_expr == NULL)
-		fprintf(stderr, "Error inside for initialization expression");
+	Token first_token = scan_token();
+	Stmt *init_stmt = NULL;
+	if (first_token.type != TOKEN_SEMICOLON) {
+		init_stmt = parser_statement(first_token);
+	}
 
-	Expr *expr = parser_expr();
-	if (expr == NULL)
-		fprintf(stderr, "Error inside for loop expression");
+	Expr *expr = NULL;
+	Token second_token = peek_token();
+	if (second_token.type != TOKEN_SEMICOLON) {
+		putback_token();
+		expr = parser_expr();
+		if (!expect_token(TOKEN_SEMICOLON))
+			fprintf(stderr, "A 'for' must have three expressions separated by semicolons, you moron!");
+	} else {
+		consume_token();
+	}
 
-	Expr *next_expr = parser_expr();
-	if (next_expr == NULL)
-		fprintf(stderr, "Error inside for condition expression");
-
-	if (!expect_token(TOKEN_CLOSEDPARENTHESIS))
-		fprintf(stderr, "Error! for must be followed by a closed parenthesis ')'");
+	Expr *next_expr = NULL;
+	Token third_token = peek_token();
+	if (third_token.type != TOKEN_CLOSEDPARENTHESIS) {
+		putback_token();
+		next_expr = parser_expr();
+		if (!expect_token(TOKEN_CLOSEDPARENTHESIS))
+			fprintf(stderr, "Error! for must be followed by a closed parenthesis ')'");
+	} else {
+		consume_token();
+	}
 
 	Stmt *body = parser_body(scan_token());
 	if (body == NULL)
 		fprintf(stderr, "Error with body");
 
-	return stmt__create_for(init_expr, expr, next_expr, body, NULL);
+	return stmt__create_for(init_stmt, expr, next_expr, body, NULL);
 }
 
 Stmt *parser_while(Token token)
@@ -403,23 +475,44 @@ Stmt *parser_statement(Token token)
 
 Stmt *parser_body(Token token)
 {
-	Stmt *body = malloc(sizeof(*body));
-	Stmt *current = body;
-	bool loop = false;
+	Stmt *current;
 	if (token.type == TOKEN_OPENBRACE) {
-		loop = true;
 		token = scan_token();
 		if (token.type != TOKEN_CLOSEDBRACE)
 			current = parser_statement(token);
 		else
 			return NULL;
+	} else {
+		return parser_statement(token);
 	}
-	do {
+	token = scan_token();
+	Stmt *body = current;
+	while (token.type != TOKEN_CLOSEDBRACE) {
 		current->next = parser_statement(token);
 		if (current->next)
 			current = current->next;
 		token = scan_token();
-	} while (loop && token.type != TOKEN_CLOSEDBRACE);
+	}
 
 	return body;
+}
+
+Decl *parser_program(char *src)
+{
+	Decl *head = NULL;
+	Decl **current = &head;
+
+	Token token = parser_init(src);
+	while (token.type != TOKEN_EOF) {
+		Decl *decl = parser_decl(token);
+
+		if (decl) {
+			*current = decl;
+			current = &decl->next;
+		}
+
+		token = scan_token();
+	}
+
+	return head;
 }
