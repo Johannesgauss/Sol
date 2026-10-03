@@ -1,6 +1,7 @@
 #ifndef AST_H
 #define AST_H
 #include "string.h"
+#include <stdbool.h>
 
 struct Expr;
 struct Stmt;
@@ -54,7 +55,7 @@ struct Param_list {
 };
 
 struct Stmt_for_block {
-	Expr *init_expr;
+	Stmt *init_stmt;
 	Expr *expr;
 	Expr *next_expr;
 	Stmt *body;
@@ -126,6 +127,8 @@ struct Expr {
 		int bool_value;
 		char char_value;
 	};
+
+	int reg;
 };
 
 struct Stmt {
@@ -142,11 +145,15 @@ struct Stmt {
 		str label;
 	};
 
+	int reg;
+
 	Stmt *next;
 };
 
 struct Decl {
 	Symbol *symbol;
+	// get a better solution later!
+	bool is_extern;
 
 	str name;
 	Type *type;
@@ -154,6 +161,10 @@ struct Decl {
 		Expr *value;
 		Stmt *code;
 	};
+
+
+	int reg;
+
 	Decl *next;
 };
 
@@ -164,7 +175,7 @@ Decl *decl__create_code(str name, Type *type, Stmt *code, Decl *next);
 Stmt *stmt__create_decl(Decl *decl, Stmt *next);
 Stmt *stmt__create_expr(Expr *expr, Stmt *next);
 Stmt *stmt__create_if_else(Expr *expr, Stmt *body, Stmt *else_body, Stmt *next);
-Stmt *stmt__create_for(Expr *init_expr, Expr *expr, Expr *next_expr, Stmt *body, Stmt *next);
+Stmt *stmt__create_for(Stmt *init_stmt, Expr *expr, Expr *next_expr, Stmt *body, Stmt *next);
 Stmt *stmt__create_while(Expr *expr, Stmt *body, Stmt *next);
 Stmt *stmt__create_print(Expr *expr, Stmt *next);
 Stmt *stmt__create_return(Expr *expr, Stmt *next);

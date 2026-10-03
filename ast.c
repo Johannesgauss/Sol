@@ -5,6 +5,7 @@ Decl *decl__create_value(str name, Type *type, Expr *value, Decl *next)
 {
 	Decl *self = malloc(sizeof(*self));
 	self->symbol = NULL;
+	self->is_extern = false;
 	self->name = name;
 	self->type = type;
 	self->value = value;
@@ -17,6 +18,7 @@ Decl *decl__create_code(str name, Type *type, Stmt *code, Decl *next)
 {
 	Decl *self = malloc(sizeof(*self));
 	self->symbol = NULL;
+	self->is_extern = false;
 	self->name = name;
 	self->type = type;
 	self->code = code;
@@ -72,11 +74,11 @@ Stmt *stmt__create_if_else(Expr *expr, Stmt *body, Stmt *else_body, Stmt *next)
 	return self;
 }
 
-Stmt *stmt__create_for(Expr *init_expr, Expr *expr, Expr *next_expr, Stmt *body, Stmt *next)
+Stmt *stmt__create_for(Stmt *init_stmt, Expr *expr, Expr *next_expr, Stmt *body, Stmt *next)
 {
 	Stmt *self = malloc(sizeof(*self));
 	self->kind = STMT_FOR;
-	self->for_block.init_expr = init_expr;
+	self->for_block.init_stmt = init_stmt;
 	self->for_block.expr = expr;
 	self->for_block.next_expr = next_expr;
 	self->for_block.body = body;
@@ -183,7 +185,7 @@ void stmt__destroy(Stmt *self)
 			stmt__destroy(self->if_else_block.else_body);
 			break;
 		case STMT_FOR:
-			expr__destroy(self->for_block.init_expr);
+			stmt__destroy(self->for_block.init_stmt);
 			expr__destroy(self->for_block.expr);
 			expr__destroy(self->for_block.next_expr);
 			stmt__destroy(self->for_block.body);
@@ -255,6 +257,7 @@ Expr *expr__create_integer_literal(int int_value)
 Expr *expr__create_string_literal(const char *str_literal)
 {
 	Expr *self = malloc(sizeof(*self));
+	self->symbol = NULL;
 	self->kind = EXPR_STRING_LITERAL;
 	self->left = NULL;
 	self->right = NULL;

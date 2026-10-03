@@ -30,6 +30,7 @@ typedef enum token_type {
 	TOKEN_DEFINETAG,
 	TOKEN_NON_PROTECTED_WORD,
 	TOKEN_DIGIT,
+	TOKEN_STRING,
 	TOKEN_EOF,
 
 	// Protected words
@@ -41,6 +42,7 @@ typedef enum token_type {
 	TOKEN_CONTINUE,
 	TOKEN_BREAK,
 	TOKEN_GOTO,
+	TOKEN_EXTERN,
 
 	// Types
 	TOKEN_CHAR,
@@ -181,6 +183,21 @@ static inline Token get_token(char **src_ptr)
 			}
 			src++; goto END;
 		}
+		case '"': {
+			src++;
+			while (*src != '"' && *src != '\0') {
+				if (*src == '\\' && *(src + 1) != '\0') {
+					src += 2;
+				} else {
+					src++;
+				}
+			}
+			self.type = TOKEN_STRING;
+			if (*src == '"') {
+				src++;
+			}
+			goto END;
+		}
 	}
 	if (isdigit(*src)) {
 		self.type = TOKEN_DIGIT;
@@ -209,6 +226,8 @@ static inline Token get_token(char **src_ptr)
 			self.type = TOKEN_BREAK;
 		} else if (len == 4 && !memcmp(begin, "goto", len)) {
 			self.type = TOKEN_GOTO;
+		} else if (len == 6 && !memcmp(begin, "extern", len)) {
+			self.type = TOKEN_EXTERN;
 		// types
 		} else if (len == 4 && !memcmp(begin, "char", len)) {
 			self.type = TOKEN_CHAR;
